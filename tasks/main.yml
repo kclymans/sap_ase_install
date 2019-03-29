@@ -1,0 +1,130 @@
+- name: install required software
+  yum:
+    name: ['unzip','gzip']
+    state: present
+
+- group: 
+    name: sybase
+    state: present
+
+- user:
+    name: sybase
+    group: sybase
+    createhome: no
+    state: present
+
+- name: create logic volumes
+  lvol:
+    vg: "{{ sybase_vg }}"
+    lv: "{{ item.name }}"
+    size: "{{ item.size }}"
+  loop: "{{ sybase_partitions }}"
+
+- name: format volues
+  filesystem:
+    fstype: "{{ item.type }}"
+    dev: "/dev/{{ sybase_vg }}/{{ item.name }}" 
+  loop: "{{ sybase_partitions }}"
+
+- name: Mount volumes
+  mount:
+    path: "{{ item.path }}/{{ item.name }}"
+    src: "/dev/{{ sybase_vg }}/{{ item.name }}"
+    fstype: "{{ item.type }}"
+    state: "mounted"
+  loop: "{{ sybase_partitions }}"
+
+- file:
+    path: '{{ item }}'
+    state: directory
+    owner: sybase
+    group: sybase
+    mode: '2755'
+  loop:
+  - "{{ sybase_parent_dir }}"
+  - "{{ sybase_log_dir }}"
+  - "{{ sybase_dump_dir }}"
+  - "{{ sybase_dev_dir }}"
+  - "{{ sybase_software_dir }}"
+  - "{{ sybase_fsdev_dir }}"
+
+- name: Set kernel parameters
+  sysctl:
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+  - { name: net.core.wmem_max, value: 1048576 }
+  - { name: net.core.rmem_max, value: 2621440 }
+
+- name: set shell parameters for sybase user
+  lineinfile:
+    dest: /etc/security/limits.conf
+    line: '{{ item }}'
+    state: present
+  loop:
+  - "sybase   soft  nofile  4096"
+  - "sybase   hard  nofile  63536"
+
+#Create sybase links.
+#Sybase recommends raw devices except tempdb
+
+- name:  debug test
+  debug: "{{ item.name }}"
+  with_items: "{{sybase_raw_devices}}"
+
+- name: create logical volume groups
+  lvol:
+    vg: "{{ sybase_vg }}"
+    lv: "{{ item.name }}"
+    size: "{{ item.size }}"
+  with_items: "{{ sybase_raw_devices }}"
+
+- name: symlink opt to var
+  file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+    owner: sybase
+    group: sybase
+  with_items:
+  - { src: "{{ sybase_software_dir }}", dest: "/opt/sybase" }
+
+
+# TODO Tempdb 
+- name: format temp storage as swap
+  filesystem:
+    fstype: swap
+    dev: "/dev/{{ sybase_vg }}/tempdb"
+
+- name: Mount swap volume
+  mount:
+    path: "swap"
+    src: "/dev/{{ sybase_vg }}/tempdb"
+    fstype: swap
+    state: present
+  notify: swapon
+
+- name: create tmpfs and mount
+  mount:
+    name: "{{ sybase_temp_dir }}"
+    src: "tmpfs"
+    fstype: "tmpfs"
+    opts: "size={{ sybase_temp_size }}"
+    state: mounted
+
+#Block 2 , install sybase
+- copy:
+    src: "{{ sybase_source }}"
+    dest: "/tmp/ASE-{{ sybase_version }}.tgz"
+- unarchive:
+    src: "/tmp/ASE-{{ sybase_version }}.tgz"
+    #dest: '{{ sybase_software_dir}}'
+    dest: '/opt'
+    owner: sybase
+    group: sybase
+    copy: no
+
+#- name: Copy over response files
+#
+#
+#execute install sudo ./setup.bin -f ase_response.txt -i silent -DAGREE_TO_SAP_LICENSE=true

@@ -1,0 +1,66 @@
+---
+sybase_version: 16.0
+sybase_source: /home/kevin/CodePlace/sybase/binaries/ASESERV160002P_1-20012052.TGZ
+
+sybase_parent_dir: /var/sybase
+sybase_log_dir: /var/log/sybase #Log direcitory
+sybase_dump_dir: "{{sybase_parent_dir}}/dumps" #Backup dur
+sybase_dev_dir: /dev/sybase #For row devices
+sybase_software_dir: "{{ sybase_parent_dir }}/opt" # software dir
+sybase_fsdev_dir: "{{ sybase_parent_dir }}/sybase_fs_dev1" #seperate parition
+sybase_logfile_page_size: ""
+sybase_port: 1521
+
+sybase_dataserver_name: "ASE_16"
+sybase_sa_password: "test123"
+#File based databases
+sybase_tempdbdata0_dir : "/tmp_sybase/tempdbdata0" #Temp db data files on swap paritition
+sybase_tempdbdata0_size: "5GB"
+sybase_tempdblog0_dir : "/tmp_sybase"  #Tempdbb log device swap parition 4 logs in total
+sybase_tempdblog0_size: "60MB"
+
+sybase_dbccdata_name: "{{ sybase_fsdev_dir }}/dbccdat0.dat"
+sybase_dbccdata_size: ""
+sybase_dbcclog_name: "{{ sybase_fsdev_dir }}/dbcclog0.dat"
+sybase_dbcclog_size:
+
+sybase_ssdbdata_name: "{{ sybase_fsdev_dir }}/ssdbdat0.dat"
+sybase_ssdbdata_size: ""
+sybase_ssdblog_name: "{{ sybase_fsdev_dir }}/ssdblog0.dat"
+sybase_dbcclog_size:
+
+#Raw devices
+sybase_vg: "vg_data"
+
+#  - name: "tmp_sybase"   #1 tempdb data and 4 tempdb logs
+#    size: "1g"
+#    type: "swap"
+#    path: "/"
+sybase_partitions:
+  - name: "sybase"
+    size: "2g"
+    type: "xfs"
+    path: "/var/"
+  - name: "sybase_fs_dev1"
+    size: "1g"
+    type: "xfs"
+    path: "/var/sybase/"
+
+sybase_raw_devices:
+  - name: "data0"
+    size: "2g"
+    path: "/dev/sybase/data0"
+  - name: "log0"
+    size: "1g"
+    path: "/dev/sybase/log0"
+  - name: "masterdata"
+    size: "1g"
+    path: "/dev/sybase/masterdata"
+  - name: "sybprocs"
+    size: "1g"
+    path: "/dev/sybase/sybprocs"
+  - name: "tempdb"
+    size: "1g"
+    path: "/tmp_sybase"
+sybase_temp_dir : "/tmp_sybase"
+sybase_temp_size: "1024m"
